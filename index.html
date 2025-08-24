@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>小祝福 · Love Notes</title>
+  <meta name="description" content="录制一段婚礼祝福视频，并展示漂亮的 CSS 动画祝福语。" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --brand:#ff8ab5; /* 主题粉 */
+      --ink:#0f172a;  /* 墨色 */
+      --bg:#0b0b10;  /* 深背景 */
+      --passcode:"5201314"; /* 改这个就是你的小密码（不安全，轻用途）*/
+      --msg:"愿你们相濡以沫，执子之手，与子偕老 💍"; /* 默认祝福语 */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; color:#fff; background:radial-gradient(1200px 800px at 10% 10%, #201a2b 0%, #0b0b10 55%);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      overflow:hidden; /* 让舞台更干净 */
+    }
+
+    /* —— 登录蒙层 —— */
+    .gate{
+      position:fixed; inset:0; display:grid; place-items:center; background:rgba(9,9,12,.8); backdrop-filter: blur(10px);
+      z-index:50; transition:opacity .5s ease;
+    }
+    .gate.hide{opacity:0; pointer-events:none}
+    .card{ width:min(92vw,420px); background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+      border-radius:24px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .title{font-weight:800; font-size:22px;letter-spacing:.4px}
+    .muted{opacity:.75; font-size:14px; line-height:1.5}
+    .field{margin-top:14px}
+    .input{width:100%; padding:14px 16px; border-radius:14px; border:1px solid rgba(255,255,255,.15);
+      background:rgba(255,255,255,.06); color:#fff; outline:none}
+    .btn{margin-top:14px; width:100%; padding:12px 16px; border:none; border-radius:14px; cursor:pointer;
+      color:#1b1020; background:linear-gradient(135deg, #ffd1e3, var(--brand)); font-weight:700}
+    .small{font-size:12px; opacity:.7; margin-top:10px}
+
+    /* —— 舞台 —— */
+    .stage{position:absolute; inset:0; display:grid; grid-template-rows:auto 1fr auto;}
+
+    /* 背景动画：Lissajous 光点使用 CSS 三角函数 */
+    .orbs{position:absolute; inset:0; pointer-events:none; filter: blur(10px) saturate(1.4)}
+    .orb{position:absolute; width:18px; height:18px; border-radius:999px; background:radial-gradient(circle at 30% 30%, #fff, var(--brand)); opacity:.85;
+      /* 我们用一个角度变量 --a，从 0deg 动画到 360deg，然后通过 sin()/cos() 算出 x,y */
+      --a:0deg; animation: spin 9s linear infinite;
+    }
+    /* 不同轨迹/相位，生成多颗光点 */
+    .orb[data-i="1"]{animation-duration:10s}
+    .orb[data-i="2"]{animation-duration:11.5s}
+    .orb[data-i="3"]{animation-duration:13s}
+    .orb[data-i="4"]{animation-duration:15s}
+    .orb[data-i="5"]{animation-duration:17s}
+
+    @keyframes spin{
+      0%{ --a: 0deg }
+      100%{ --a: 360deg }
+    }
+    /* 用三角函数绘制椭圆/Lissajous 路径：
+       x = sin(a) * Rx  + 居中
+       y = cos(a*2) * Ry + 居中 （a*2 形成李萨如曲线）*/
+    .orb{ 
+      left: calc(50% + sin(var(--a)) * 40vw);
+      top:  calc(45% + cos(calc(var(--a) * 2)) * 18vh);
+    }
+
+    /* 祝福文案 */
+    .panel{place-self:center; text-align:center; padding:24px; z-index:1}
+    .bless{font-size: clamp(26px, 5vw, 48px); font-weight:800; line-height:1.15; letter-spacing:.5px; text-wrap:balance}
+    .sign{margin-top:10px; font: 400 20px/1.2 "Zhi Mang Xing", cursive; opacity:.9}
+
+    /* 浪漫小心形（纯 CSS） */
+    .hearts{position:absolute; inset:0; pointer-events:none}
+    .heart{position:absolute; width:16px; aspect-ratio:1; background:var(--brand); transform:rotate(45deg); opacity:.85; filter:drop-shadow(0 4px 8px rgba(255,0,70,.25));
+      animation: floatUp 6s linear infinite; border-radius:4px 4px 0 0;}
+    .heart::before,.heart::after{content:""; position:absolute; inset:0; border-radius:50%; background:var(--brand)}
+    .heart::before{left:-50%}
+    .heart::after{top:-50%}
+    @keyframes floatUp{
+      0%{ transform:translateY(20vh) rotate(45deg); opacity:0 }
+      10%{opacity:.9}
+      100%{ transform:translateY(-110vh) rotate(45deg); opacity:0 }
+    }
+
+    /* 录制区 */
+    .rec{place-self:end center; margin:24px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:16px; width:min(92vw,760px)}
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:center}
+    .toolbar button{padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.08); color:#fff; cursor:pointer}
+    .toolbar button.primary{background:linear-gradient(135deg, #ffd1e3, var(--brand)); color:#1b1020; font-weight:800}
+    video{width:100%; max-height:50vh; background:#000; border-radius:16px; margin-top:12px}
+
+    /* 顶部角标 */
+    .badge{position:fixed; left:14px; top:14px; font-size:12px; opacity:.8}
+    .badge a{color:#fff; text-decoration:none; border-bottom:1px dashed rgba(255,255,255,.4)}
+
+    /* 响应式细节 */
+    @media (max-width:480px){ .rec{padding:12px} .toolbar button{flex:1} }
+  </style>
+</head>
+<body>
+  <div class="badge">小祝福 · 纯前端 · CSS 三角函数动画</div>
+
+  <!-- 登录蒙层 -->
+  <div class="gate" id="gate">
+    <div class="card">
+      <div class="title">请输入小密码</div>
+      <div class="muted">这是个简单的“准私密”页面。如果想真正账号体系，后续可接入 Firebase/Supabase。</div>
+      <div class="field"><input id="pwd" class="input" placeholder="比如：5201314" /></div>
+      <button class="btn" id="enter">进入</button>
+      <div class="small">提示：可在 <code>--passcode</code> 自定义密码；此方式仅适合轻场景。</div>
+    </div>
+  </div>
+
+  <!-- 舞台 -->
+  <main class="stage">
+    <!-- 背景光点：使用 CSS sin()/cos() 形成李萨如曲线 -->
+    <div class="orbs" aria-hidden="true">
+      <div class="orb" data-i="1"></div>
+      <div class="orb" data-i="2"></div>
+      <div class="orb" data-i="3"></div>
+      <div class="orb" data-i="4"></div>
+      <div class="orb" data-i="5"></div>
+    </div>
+
+    <!-- 飘心 -->
+    <div class="hearts" id="hearts" aria-hidden="true"></div>
+
+    <!-- 祝福文案面板 -->
+    <section class="panel">
+      <div class="bless" id="bless"></div>
+      <div class="sign" id="sign">— 来自最好的朋友</div>
+    </section>
+
+    <!-- 录制区（基于 MediaRecorder，纯前端存本地） -->
+    <section class="rec">
+      <div class="toolbar">
+        <button id="openCam" class="primary">打开摄像头</button>
+        <button id="startRec">开始录制</button>
+        <button id="stopRec" disabled>停止并预览</button>
+        <button id="saveRec" disabled>下载视频</button>
+      </div>
+      <video id="player" playsinline controls></video>
+    </section>
+  </main>
+
+  <script>
+    // —— 简易“登录” ——
+    const gate = document.getElementById('gate');
+    const input = document.getElementById('pwd');
+    document.getElementById('enter').addEventListener('click', () => {
+      const want = getComputedStyle(document.documentElement).getPropertyValue('--passcode').replaceAll('"','').trim();
+      if((input.value || '').trim() === want){ gate.classList.add('hide'); } 
+      else { input.value=''; input.placeholder='密码不对，再试一次～'; }
+    });
+
+    // 支持回车
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('enter').click(); });
+
+    // —— 祝福文案：支持 URL 查询参数 ?msg=xxx&from=yyy ——
+    const Bless = document.getElementById('bless');
+    const params = new URLSearchParams(location.search);
+    const msg = params.get('msg') || getComputedStyle(document.documentElement).getPropertyValue('--msg').replaceAll('"','').trim();
+    const from = params.get('from') || '';
+    Bless.textContent = msg;
+    if(from) document.getElementById('sign').textContent = `— ${from}`;
+
+    // —— 飘心：生成一些不同的随机心形 ——
+    const hearts = document.getElementById('hearts');
+    const rand = (a,b)=> a + Math.random()*(b-a);
+    for(let i=0;i<60;i++){
+      const h = document.createElement('div'); h.className='heart';
+      h.style.left = rand(0, 100) + 'vw';
+      h.style.animationDelay = rand(-6, 0) + 's';
+      h.style.animationDuration = rand(4, 10) + 's';
+      h.style.transform = `translateY(${rand(10,80)}vh) rotate(45deg)`;
+      h.style.opacity = rand(.4,.95);
+      h.style.width = rand(10,22) + 'px';
+      hearts.appendChild(h);
+    }
+
+    // —— 录制功能（纯前端） ——
+    const openCam = document.getElementById('openCam');
+    const startRec = document.getElementById('startRec');
+    const stopRec = document.getElementById('stopRec');
+    const saveRec = document.getElementById('saveRec');
+    const player = document.getElementById('player');
+
+    let mediaStream = null, recorder = null, chunks = [];
+
+    openCam.onclick = async () => {
+      try{
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+        player.srcObject = mediaStream; player.muted = true; player.play();
+      }catch(e){ alert('无法打开摄像头/麦克风：' + e.message); }
+    };
+
+    startRec.onclick = () => {
+      if(!mediaStream){ alert('请先打开摄像头'); return; }
+      chunks = [];
+      recorder = new MediaRecorder(mediaStream, { mimeType: 'video/webm;codecs=vp9,opus' });
+      recorder.ondataavailable = (e)=>{ if(e.data.size>0) chunks.push(e.data); };
+      recorder.onstop = ()=>{
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        player.srcObject = null; player.src = URL.createObjectURL(blob); player.muted = false; player.play();
+        saveRec.disabled = false; saveRec.onclick = () => {
+          const a = document.createElement('a');
+          a.href = player.src; a.download = `wedding-greet-${Date.now()}.webm`;
+          document.body.appendChild(a); a.click(); a.remove();
+        };
+      };
+      recorder.start();
+      startRec.disabled = true; stopRec.disabled = false;
+    };
+
+    stopRec.onclick = () => {
+      if(recorder && recorder.state !== 'inactive'){ recorder.stop(); }
+      stopRec.disabled = true; startRec.disabled = false;
+    };
+
+    // —— 小抖动：祝福文案呼吸/律动（继续用三角函数） ——
+    // 通过动画变量 --t 实现水平轻微摆动：x = sin(t)*2px
+    const style = document.createElement('style');
+    style.textContent = `
+      @property --t { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+      .bless { --t: 0deg; animation: wave 8s linear infinite; }
+      @keyframes wave { 0%{--t:0deg} 100%{--t:360deg} }
+      .bless{ transform: translateX(calc(sin(var(--t))*6px)); }
+    `;
+    document.head.appendChild(style);
+
+    // —— 安全提示 ——
+    console.log('%c注意：当前密码是前端明文，适合一次性/轻量用途。要真正私密请改用后端/鉴权服务。','background:#ffd1e3;color:#530; padding:4px 8px; border-radius:6px;');
+  </script>
+</body>
+</html>
