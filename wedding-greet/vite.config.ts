@@ -6,6 +6,7 @@ import { defineConfig } from 'vite'
 // ② 如果这是“用户主页”或“自定义域名”
 //   base: '/'
 
+// wedding-greet/vite.config.ts
 export default defineConfig({
-  base: '/wedding-greet/', // ← 按你的仓库名改；若是用户主页或自定义域名，用 '/'
+  base: '/XiangRou-Asked/',   // 项目页一定是 '/<仓库名>/'
 })
