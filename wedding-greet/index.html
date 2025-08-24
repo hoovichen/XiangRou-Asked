@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>婚礼祝福 · Love Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Zhi+Mang+Xing&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div class="badge">To Chuyin</div>
+  <main class="stage">
+    <div class="orbs" aria-hidden="true">
+      <div class="orb" data-i="1"></div>
+      <div class="orb" data-i="2"></div>
+      <div class="orb" data-i="3"></div>
+      <div class="orb" data-i="4"></div>
+      <div class="orb" data-i="5"></div>
+      <!-- 新增玫瑰线光点 -->
+      <div class="orb rose"></div>
+      <div class="orb rose" style="animation-duration:14s"></div>
+      <div class="orb rose" style="animation-duration:16s"></div>
+    </div>
+    <div class="hearts" id="hearts" aria-hidden="true"></div>
+    <!-- 祝福面板里追加一个入口按钮 -->
+    <section class="panel">
+      <div class="bless" id="bless"></div>
+      <div class="sign" id="sign">— 来自最好的朋友</div>
+      <div style="margin-top:16px">
+        <!-- 控制区：两个按钮 + 登录/退出；隐藏的文件选择器 -->
+        <section class="controls" id="controls">
+          <div class="toolbar">
+            <button id="viewBtn" class="primary">查看大家的祝福</button>
+            <button id="uploadBtn">我来上传</button>
+            <span style="flex:1"></span>
+            <button id="login">登录/注册</button>
+            <button id="logout" style="display:none">退出</button>
+          </div>
+          <!-- 隐藏的 input，支持安卓/iOS 相册 -->
+          <input id="filePicker" type="file" accept="video/*,image/*" style="display:none" />
+        </section>
+      </div>
+    </section>
+    <!-- 画廊：用网格展示图片/视频 -->
+    <section class="gallery" id="gallery" style="display:none"></section>
+
+  </main>
+  <!-- 登录蒙层（点击“登录/注册”出现） -->
+  <div class="modal" id="authModal" aria-hidden="true">
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="dialog-hd">
+        <div id="authTitle">登录 / 注册</div>
+        <button id="authClose" class="icon-btn" aria-label="关闭">✕</button>
+      </div>
+      <div class="dialog-bd">
+        <label>邮箱</label>
+        <input id="authEmail" type="email" placeholder="you@example.com" />
+        <label>密码</label>
+        <input id="authPassword" type="password" placeholder="至少 6 位" />
+        <div id="authError" class="err" style="display:none"></div>
+      </div>
+      <div class="dialog-ft">
+        <button id="authSubmit" class="primary">登录</button>
+        <button id="authSwitch" class="ghost">没有账号？点此注册</button>
+        <button id="authMagic" class="ghost">邮件快捷登录</button>
+        <button id="authReset" class="ghost">忘记密码</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 画廊占位卡（加载/空状态时用，JS 会克隆） -->
+  <template id="card-skeleton">
+    <div class="card">
+      <div class="skeleton media"></div>
+      <div class="skeleton line"></div>
+    </div>
+  </template>
+  <template id="card-empty">
+    <div class="card" style="display:flex;align-items:center;justify-content:center;min-height:140px;opacity:.8">
+      还没有祝福，做第一个送祝福的人吧～
+    </div>
+  </template>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>

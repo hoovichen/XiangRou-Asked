@@ -1,0 +1,602 @@
+:root {
+  --brand: #ff8ab5;
+  --bg: #0b0b10;
+  --msg: "愿你们相濡以沫，执子之手，与子偕老 💍";
+}
+
+* {
+  box-sizing: border-box
+}
+
+html,
+body {
+  height: 100%
+}
+
+body {
+  margin: 0;
+  color: #fff;
+  background: radial-gradient(1200px 800px at 10% 10%, #201a2b 0%, #0b0b10 55%);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  overflow: hidden
+}
+
+.badge {
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  font-size: 12px;
+  opacity: .8
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto
+}
+
+.orbs {
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  filter: blur(10px) saturate(1.4)
+}
+
+.orb {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff, var(--brand));
+  opacity: .85;
+  --a: 0deg;
+  animation: spin 9s linear infinite
+}
+
+.orb[data-i="1"] {
+  animation-duration: 10s
+}
+
+.orb[data-i="2"] {
+  animation-duration: 11.5s
+}
+
+.orb[data-i="3"] {
+  animation-duration: 13s
+}
+
+.orb[data-i="4"] {
+  animation-duration: 15s
+}
+
+.orb[data-i="5"] {
+  animation-duration: 17s
+}
+
+.orb {
+  left: calc(50% + sin(var(--a))*40vw);
+  top: calc(45% + cos(calc(var(--a)*2))*18vh)
+}
+
+.panel {
+  place-self: center;
+  text-align: center;
+  padding: 24px;
+  z-index: 3;
+}
+
+.bless {
+  font-size: clamp(26px, 5vw, 48px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: .5px;
+  text-wrap: balance;
+  text-shadow: 0 2px 16px rgba(255, 136, 170, .25);
+}
+
+.sign {
+  margin-top: 10px;
+  font: 400 20px/1.2 "Zhi Mang Xing", cursive;
+  opacity: .9
+}
+
+.hearts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.heart {
+  position: relative;
+  width: 16px;
+  aspect-ratio: 1;
+  background: var(--brand);
+  transform: rotate(45deg);
+  opacity: .85;
+  filter: drop-shadow(0 4px 8px rgba(255, 0, 70, .25));
+  border-radius: 4px 4px 0 0;
+  animation: floatUp 8s linear infinite;
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(10vh) rotate(45deg);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: .95;
+  }
+
+  100% {
+    transform: translateY(-100vh) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.heart::before,
+.heart::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--brand)
+}
+
+.heart::before {
+  left: -50%
+}
+
+.heart::after {
+  top: -50%
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center
+}
+
+.toolbar button {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  cursor: pointer
+}
+
+.toolbar button.primary {
+  background: linear-gradient(135deg, #ffd1e3, var(--brand));
+  color: #1b1020;
+  font-weight: 800
+}
+
+/* 让按钮不那么抢戏（ghost 风格） */
+.panel .primary {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .25);
+}
+
+.panel .primary:hover {
+  background: rgba(255, 255, 255, .18);
+}
+
+video {
+  width: 100%;
+  max-height: 50vh;
+  background: #000;
+  border-radius: 16px;
+  margin-top: 12px
+}
+
+#uploadRow {
+  display: flex
+}
+
+@property --t {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.bless {
+  --t: 0deg;
+  animation: wave 8s linear infinite;
+  transform: translateX(calc(sin(var(--t))*6px))
+}
+
+@keyframes wave {
+  0% {
+    --t: 0deg
+  }
+
+  100% {
+    --t: 360deg
+  }
+}
+
+/* 分层：光点 < 心心 < 文案 */
+.orbs {
+  z-index: 0;
+}
+
+.hearts {
+  z-index: 2;
+}
+
+.panel {
+  z-index: 3;
+}
+
+/* 让主按钮不抢戏（柔和一点） */
+.panel .primary,
+.controls .primary {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .25);
+}
+
+.panel .primary:hover,
+.controls .primary:hover {
+  background: rgba(255, 255, 255, .18);
+}
+
+/* 画廊网格（自适应卡片） */
+.gallery {
+  position: absolute;
+  inset: 20vh 4vw 4vh 4vw;
+  /* 顶部留出祝福区域 */
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-content: start;
+  overflow: auto;
+}
+
+.card {
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.card video,
+.card img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+/* 玫瑰线：r = sin(kθ)，映射到 x = cosθ * r, y = sinθ * r */
+.orb.rose {
+  --a: 0deg;
+  animation: spin 12s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    --a: 0deg
+  }
+
+  100% {
+    --a: 360deg
+  }
+}
+
+
+/* —— 登录蒙层 —— */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(0, 0, 0, .45);
+  backdrop-filter: blur(6px);
+  z-index: 50;
+}
+
+.modal.show {
+  display: grid;
+}
+
+.dialog {
+  width: min(92vw, 420px);
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.dialog-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  opacity: .8
+}
+
+.dialog-bd label {
+  display: block;
+  font-size: 12px;
+  opacity: .9;
+  margin: 8px 0 6px
+}
+
+.dialog-bd input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  outline: none;
+}
+
+.dialog-ft {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dialog-ft .primary {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: linear-gradient(135deg, #ffd1e3, var(--brand));
+  color: #1b1020;
+  font-weight: 800
+}
+
+.dialog-ft .ghost {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  background: rgba(255, 255, 255, .1);
+  color: #fff
+}
+
+.err {
+  margin-top: 8px;
+  color: #ffd1d1;
+  font-size: 12px
+}
+
+/* —— 画廊骨架（加载占位） —— */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .25), transparent);
+  transform: translateX(-100%);
+  animation: shine 1.2s infinite;
+}
+
+@keyframes shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton.media {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 10px;
+}
+
+.skeleton.line {
+  height: 12px;
+  margin-top: 10px;
+  border-radius: 8px;
+  opacity: .6
+}
+
+/* —— 查看祝福态：将标题收缩到顶部，画廊下移 —— */
+.stage.compact .panel {
+  /* 收缩并上移（保留你喜欢的视觉比例，可自行微调） */
+  transform: translateY(-30vh) scale(.85);
+  transition: transform .4s ease;
+}
+
+.stage.compact .bless {
+  font-size: clamp(28px, 4.2vw, 44px);
+  text-shadow: 0 2px 10px rgba(255, 136, 170, .18);
+}
+
+.stage.compact .sign {
+  font-size: 14px;
+  opacity: .8;
+}
+
+/* 默认画廊位置（暂隐藏时不占位），compact 时露出更多上边距 */
+.gallery {
+  position: absolute;
+  inset: 20vh 4vw 4vh 4vw;
+  display: none;
+  /* 初始隐藏，点击查看再显示 */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  align-content: start;
+  overflow: auto;
+}
+
+.stage.compact .gallery {
+  display: grid;
+  inset: 26vh 4vw 4vh 20vw;
+  /* 上边距更大，避免撞到标题 */
+}
+
+/* 卡片占位骨架（你已添加模板，这里是样式） */
+.card {
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.card video,
+.card img {
+  width: 100%;
+  display: block;
+  border-radius: 10px;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .25), transparent);
+  transform: translateX(-100%);
+  animation: shine 1.2s infinite;
+}
+
+@keyframes shine {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton.media {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 10px;
+}
+
+.skeleton.line {
+  height: 12px;
+  margin-top: 10px;
+  border-radius: 8px;
+  opacity: .6
+}
+
+/* 登录蒙层样式（你已加结构，这里确保展示效果） */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(0, 0, 0, .45);
+  backdrop-filter: blur(6px);
+  z-index: 50;
+}
+
+.modal.show {
+  display: grid;
+}
+
+.dialog {
+  width: min(92vw, 420px);
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.dialog-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  opacity: .8
+}
+
+.dialog-bd label {
+  display: block;
+  font-size: 12px;
+  opacity: .8;
+  margin: 8px 0 6px
+}
+
+.dialog-bd input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  outline: none;
+}
+
+.dialog-ft {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dialog-ft .primary {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  background: linear-gradient(135deg, #ffd1e3, var(--brand));
+  color: #1b1020;
+  font-weight: 800
+}
+
+.dialog-ft .ghost {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  background: rgba(255, 255, 255, .1);
+  color: #fff
+}
+
+/* 玫瑰线覆盖（防止被通用 .orb 覆盖） */
+.orb.rose {
+  left: calc(50% + cos(var(--a))*min(37vw, 37vh)*sin(calc(var(--a)*4))) !important;
+  top: calc(50% + sin(var(--a))*min(37vw, 37vh)*sin(calc(var(--a)*4))) !important;
+}
+button[disabled] { opacity: .6; cursor: not-allowed; }
+.btnloading::after {
+  content: '…';
+  margin-left: .4em;
+  animation: btnpulse 1s infinite;
+}
+@keyframes btnpulse { 0%{opacity:.3} 50%{opacity:1} 100%{opacity:.3} }
+
+/* 右上角轻量提示（toast）*/
+.toast {
+  position: fixed; right: 16px; top: 16px; z-index: 60;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  padding: 10px 14px; border-radius: 12px;
+}
+.toast.hide { opacity: 0; transition: opacity .25s ease; }
