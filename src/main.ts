@@ -1,5 +1,6 @@
 import './style.css'
-import { supabase } from './supabaseClient'  // 你已有这个文件
+import { login, list, fileUrl, remove, getToken } from './api'
+
 
 // ====== 小工具 ======
 const $ = (sel: string) => document.querySelector(sel) as HTMLElement
@@ -9,7 +10,7 @@ function makeHearts(count = 140) {
   wrap.innerHTML = ''
   for (let i = 0; i < count; i++) {
     const h = document.createElement('div'); h.className = 'heart'
-    h.style.left = rand(10, 90) + 'vw'                 // 让心心更居中一些
+    h.style.left = rand(10, 90) + '2vw'                 // 让心心更居中一些
     h.style.animationDelay = rand(-6, 0) + 's'
     h.style.animationDuration = rand(6, 12) + 's'
     h.style.transform = `translateY(${rand(10, 80)}vh) rotate(45deg)`
@@ -48,95 +49,144 @@ if (from) ($('#sign') as HTMLElement).textContent = `— ${from}`
 makeHearts(140)
 
 // ====== 绑定元素（命名与 index.html 一致） ======
-const loginBtn = $('#login') as HTMLButtonElement
-const logoutBtn = $('#logout') as HTMLButtonElement
-const viewBtn = $('#viewBtn') as HTMLButtonElement
-const uploadBtn = $('#uploadBtn') as HTMLButtonElement
-const filePicker = $('#filePicker') as HTMLInputElement
-const gallery = $('#gallery') as HTMLDivElement
+// === DOM 引用（和 index.html 中的 id 一一对应） ===
+const adminBtn = document.getElementById('adminBtn') as HTMLButtonElement
+const logoutBtn = document.getElementById('logout') as HTMLButtonElement
+const adminPanel = document.getElementById('admin-panel') as HTMLElement
+const uploadBtn = document.getElementById('uploadBtn') as HTMLButtonElement
+const editMsgBtn = document.getElementById('editMsgBtn') as HTMLButtonElement
+const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement
+const filePicker = document.getElementById('filePicker') as HTMLInputElement
+const gallery = document.getElementById('gallery') as HTMLElement
 
-// —— 登录弹窗元素 —— 
-// —— 登录弹窗逻辑 —— 
-const authModal = document.getElementById('authModal')!
-const authClose = document.getElementById('authClose') as HTMLButtonElement
-const authEmail = document.getElementById('authEmail') as HTMLInputElement
-const authPass = document.getElementById('authPassword') as HTMLInputElement
-const authSubmit = document.getElementById('authSubmit') as HTMLButtonElement
-const authSwitch = document.getElementById('authSwitch') as HTMLButtonElement
-const authError = document.getElementById('authError') as HTMLDivElement
-
-let authMode: 'login' | 'signup' = 'login'
-function openAuth(mode: 'login' | 'signup' = 'login') {
-  authMode = mode;
-  (document.getElementById('authTitle') as HTMLElement).textContent = (mode === 'login' ? '登录' : '注册')
-  authSubmit.textContent = (mode === 'login' ? '登录' : '注册')
-  authSwitch.textContent = (mode === 'login' ? '点此注册' : '点此登录')
-  authError.style.display = 'none'; authEmail.value = ''; authPass.value = ''
-  authModal.classList.add('show')
+function roleFromToken(): 'viewer' | 'admin' | null {
+  const t = getToken()
+  if (!t) return null
+  const p = parseJwt(t)
+  return p?.role === 'admin' || p?.role === 'viewer' ? p.role : null
 }
-function closeAuth() { authModal.classList.remove('show') }
 
-loginBtn.onclick = () => openAuth('login')
-logoutBtn.onclick = async () => { await supabase.auth.signOut(); location.reload() }
-authClose.onclick = closeAuth
-authSwitch.onclick = () => openAuth(authMode === 'login' ? 'signup' : 'login')
+// 统一切 UI（登录/登出后都调它）
+function applyUI() {
+  const role = roleFromToken()
+  if (!role) {
+    // 未登录
+    adminBtn.style.display = 'inline-block'
+    logoutBtn.style.display = 'none'
+    adminPanel.style.display = 'none'
+    return
+  }
+  // 已登录
+  adminBtn.style.display = 'none'
+  logoutBtn.style.display = 'inline-block'
+  adminPanel.style.display = role === 'admin' ? 'block' : 'none'
+}
 
-authSubmit.onclick = async () => {
-  authError.style.display = 'none'
-  const email = authEmail.value.trim()
-  const password = authPass.value
-  if (!email || !password) { authError.textContent = '请填写邮箱与密码'; authError.style.display = 'block'; return }
-  lock(authSubmit, true, authMode === 'login' ? '登录中' : '注册中')
+// —— “查看大家的祝福”按钮 ——（未登录先弹 viewer 口令）
+viewBtn.onclick = async () => {
+  lock(viewBtn, true, '加载中')
   try {
-    if (authMode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-      closeAuth(); toast('登录成功')
-    } else {
-      const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } })
-      if (error) throw error
-      closeAuth(); toast('注册成功' + '（若开启邮箱确认，请去邮箱点链接）')
-    }
-  } catch (e: any) {
-    authError.textContent = e?.message || String(e)
-    authError.style.display = 'block'
+    if (!getToken()) openCode('viewer')
+    else await showGallery()
   } finally {
-    lock(authSubmit, false)
+    lock(viewBtn, false)
   }
 }
-const authMagic = document.getElementById('authMagic') as HTMLButtonElement
-const authReset = document.getElementById('authReset') as HTMLButtonElement
 
-// 邮件快捷登录（无需密码，点击邮件中的链接即可完成登录）
-authMagic.onclick = async () => {
-  const email = authEmail.value.trim()
-  if (!email) { authError.textContent = '请先填写邮箱'; authError.style.display = 'block'; return }
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: location.origin } // 需在 Auth->URL configuration 设好 Site URL
-  })
-  if (error) { authError.textContent = error.message; authError.style.display = 'block'; return }
-  closeAuth()
-  alert('已发送快捷登录邮件，请到邮箱点击链接后返回本页。')
+// —— 打开登录弹窗（默认访客，弹窗里可切换管理员）——
+adminBtn.onclick = () => openCode('viewer')
+
+// —— 上传：管理员可见 ——
+// 用隐藏的 input，避免重复创建 input
+uploadBtn?.addEventListener('click', () => filePicker.click())
+filePicker.onchange = async () => {
+  if (!filePicker.files?.length) return
+  const file = filePicker.files[0]
+  try {
+    lock(uploadBtn, true, '上传中...')
+    // TODO: 调你的上传 API（R2/Supabase）
+    // await upload(file)
+    toast('上传成功')
+    await showGallery()
+  } catch (e: any) {
+    toast(e?.message || '上传失败')
+  } finally {
+    lock(uploadBtn, false)
+    filePicker.value = ''
+  }
 }
-// 忘记密码：发重设邮件
-authReset.onclick = async () => {
-  const email = authEmail.value.trim()
-  if (!email) { authError.textContent = '请先填写邮箱'; authError.style.display = 'block'; return }
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: location.origin + '/#recovery' // 返回后可提示用户输入新密码
-  })
-  if (error) { authError.textContent = error.message; authError.style.display = 'block'; return }
-  closeAuth()
-  alert('已发送重设密码邮件，请到邮箱完成操作。')
-}
-// 登录状态同步按钮显隐
-supabase.auth.onAuthStateChange((_e, session) => {
-  const authed = !!session
-  loginBtn.style.display = authed ? 'none' : ''
-  logoutBtn.style.display = authed ? '' : 'none'
+
+// —— 编辑祝福：管理员可见 ——（示例：弹输入框）
+editMsgBtn?.addEventListener('click', async () => {
+  const old = (document.getElementById('bless') as HTMLElement)?.textContent || ''
+  const next = prompt('请输入新的祝福语：', old?.trim() || '')
+  if (next == null) return
+  try {
+    lock(editMsgBtn, true, '保存中...');
+    // TODO: 调用保存祝福语 API（或直接本地存储/Worker KV）
+    (document.getElementById('bless') as HTMLElement).textContent = next
+    toast('已更新祝福语')
+  } catch (e: any) {
+    toast(e?.message || '保存失败')
+  } finally {
+    lock(editMsgBtn, false)
+  }
+})
+// —— 登出 ——（清 token + 复原 UI + 清画廊）
+logoutBtn.addEventListener('click', () => {
+  localStorage.removeItem('wg_token')
+  applyUI()
+  gallery.style.display = 'none'
+  gallery.innerHTML = ''
+  toast('已退出')
+  location.reload(); // 或者重置UI
 })
 
+// —— 登录弹窗元素 —— 
+const codeModal = document.getElementById('codeModal') as HTMLElement
+const codeInput = document.getElementById('codeInput') as HTMLInputElement
+const codeErr = document.getElementById('codeErr') as HTMLDivElement
+const codeTitle = document.getElementById('codeTitle') as HTMLElement
+const codeSubmit = document.getElementById('codeSubmit') as HTMLButtonElement
+const codeSwitch = document.getElementById('codeSwitch') as HTMLButtonElement
+const codeClose = document.getElementById('codeClose') as HTMLButtonElement
+let codeRole: 'viewer' | 'admin' = 'viewer'
+function openCode(role: 'viewer' | 'admin' = 'viewer') { codeRole = role; codeTitle.textContent = role === 'viewer' ? '输入口令' : '管理员口令'; codeSwitch.textContent = role === 'viewer' ? '切换为管理员' : '切换为访客'; codeErr.style.display = 'none'; codeInput.value = ''; codeModal.style.display = 'grid' }
+function closeCode() { codeModal.style.display = 'none' }
+codeClose.onclick = closeCode
+codeSwitch.onclick = () => openCode(codeRole === 'viewer' ? 'admin' : 'viewer')
+codeSubmit.onclick = async () => {
+  const v = codeInput.value.trim()
+  if (!v) { codeErr.textContent = '请输入口令'; codeErr.style.display = 'block'; return }
+  lock(codeSubmit, true, '验证中')
+  try {
+    await login(codeRole, v)           // 成功会保存 token
+    closeCode()
+    toast(codeRole === 'admin' ? '欢迎管理员' : '验证成功')
+    applyUI()                          // ✅ 切换 UI
+    await showGallery()                // 两种角色都给看；如果只想 viewer 看，这里改条件
+  } catch (e: any) {
+    codeErr.textContent = e?.message || '口令不正确'
+    codeErr.style.display = 'block'
+  } finally {
+    lock(codeSubmit, false)
+  }
+}
+
+// ===== 页面进来先应用一次 UI（若已有 token 可直接露出退出/上传）======
+applyUI()
+
+// ===== 登出逻辑 =====
+document.getElementById('logout')!.addEventListener('click', () => {
+  localStorage.removeItem('wg_token');
+  // === UI 复原 ===
+  document.getElementById('admin')!.style.display = 'inline-block' // 登录按钮回来
+  document.getElementById('logout')!.style.display = 'none'
+  document.getElementById('admin-panel')!.style.display = 'none' // 上传隐藏
+  gallery.innerHTML = '' // 清空展示
+  toast('已退出')
+  location.reload(); // 或者重置UI
+});
 
 // ====== 画廊渲染（含骨架占位） ======
 // 骨架占位
@@ -146,132 +196,53 @@ function renderSkeleton(n = 8) {
   for (let i = 0; i < n; i++) gallery.appendChild(tpl.cloneNode(true))
 }
 
-// ===== 递归列出 media 桶下所有文件（子目录全遍历） =====
-// ===== 递归列出 media 桶下所有文件（子目录全遍历） =====
-async function listAllFiles(prefix = ''): Promise<{ path: string, type: 'image' | 'video' }[]> {
-  const out: { path: string, type: 'image' | 'video' }[] = []
-  const stack = [prefix]  // DFS/BFS 都可，这里用栈
-  while (stack.length) {
-    const p = stack.pop()!
-    const { data, error } = await supabase.storage.from('media').list(p, { limit: 1000, sortBy: { column: 'name', order: 'desc' } })
-    if (error) { console.warn('list error @', p, error); continue }
-    for (const it of data || []) {
-      const full = p ? `${p}/${it.name}` : it.name
-      // 判断“是否文件”：有 id 的是文件，没 id 的是目录（Supabase 的返回结构）
-      if ((it as any).id) {
-        const ext = it.name.split('.').pop()?.toLowerCase() || ''
-        const videoExt = ['mp4', 'webm', 'mov', 'm4v', 'ogg', 'ogv']
-        const imgExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif']
-        const type: 'image' | 'video' = imgExt.includes(ext) ? 'image' : (videoExt.includes(ext) ? 'video' : 'video')
-        out.push({ path: full, type })
-      } else {
-        stack.push(full)   // 子目录
+document.getElementById('uploadBtn')?.addEventListener('click', () => {
+  const fileInput = document.createElement('input')
+  fileInput.type = 'file'
+  fileInput.accept = 'video/*,image/*'
+  fileInput.onchange = async () => {
+    if (fileInput.files?.length) {
+      const file = fileInput.files[0]
+      try {
+        lock(document.getElementById('uploadBtn') as HTMLButtonElement, true, '上传中...')
+        // TODO: 调用 API 上传到 R2/Supabase
+        toast('上传成功')
+        await showGallery() // 刷新
+      } catch (e: any) {
+        toast(e?.message || '上传失败')
+      } finally {
+        lock(document.getElementById('uploadBtn') as HTMLButtonElement, false)
       }
     }
   }
-  return out  // 这里不裁剪，全部返回
-}
+  fileInput.click()
+})
 
-// ===== 渲染画廊（优先读数据库；为空时用 Storage 兜底） =====
-async function loadGallery() {
+
+async function showGallery() {
   const stage = document.querySelector('main.stage') as HTMLElement
   if (stage && !stage.classList.contains('compact')) stage.classList.add('compact')
-
   gallery.style.display = 'grid'
-  renderSkeleton(8)
-
-  // 1) 先试数据库
-  const db = await supabase
-    .from('media_assets')
-    .select('id,type,file_path,title,created_at,status')
-    .eq('status', 'active')
-    .order('created_at', { ascending: false })
-
-  gallery.innerHTML = ''
-
-  if (db.error) {
-    gallery.innerHTML = `<div class="card" style="opacity:.8">${db.error.message}</div>`
-    return
-  }
-
-  if (db.data && db.data.length) {
-    for (const row of db.data) {
-      const { data: pub } = supabase.storage.from('media').getPublicUrl(row.file_path)
-      const url = pub?.publicUrl || '#'
-      const card = document.createElement('div'); card.className = 'card'
-      card.innerHTML = row.type === 'image'
-        ? `<img src="${url}" alt="${row.title || ''}">`
-        : `<video src="${url}" controls playsinline></video>`
-      gallery.appendChild(card)
-    }
-  } else {
-    // 2) 数据表为空：用 Storage 全量兜底（能把你早期的 webm 都读出来）
-    const files = await listAllFiles('')
-    if (!files.length) {
-      const empty = (document.getElementById('card-empty') as HTMLTemplateElement).content.cloneNode(true)
-      gallery.appendChild(empty)
-      return
-    }
-    for (const f of files) {
-      const { data: pub } = supabase.storage.from('media').getPublicUrl(f.path)
-      const url = pub?.publicUrl || '#'
-      const card = document.createElement('div'); card.className = 'card'
-      card.innerHTML = f.type === 'image'
-        ? `<img src="${url}" alt="">`
-        : `<video src="${url}" controls playsinline></video>`
-      gallery.appendChild(card)
-    }
-  }
-}
-
-viewBtn.onclick = loadGallery
-
-viewBtn.onclick = async () => {
-  lock(viewBtn, true, '加载中')
-  try { await loadGallery(); toast('已为你加载最新祝福') }
-  catch (e: any) { toast('加载失败：' + (e?.message || e)) }
-  finally { lock(viewBtn, false) }
-}
-// ====== 上传（登录后） ======
-uploadBtn.onclick = async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) { openAuth('login'); return }
-  filePicker.click()
-}
-
-filePicker.onchange = async () => {
-  const file = filePicker.files?.[0]; if (!file) return
-  lock(uploadBtn, true, '上传中')
+  gallery.innerHTML = '' // 可先放骨架
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { openAuth('login'); return }
-
-    const y = new Date().getFullYear()
-    const m = String(new Date().getMonth() + 1).padStart(2, '0')
-    const ext = file.name.split('.').pop()?.toLowerCase() || (file.type.startsWith('image/') ? 'jpg' : 'webm')
-    const path = `${user.id}/${y}/${m}/${Date.now()}.${ext}`  // 唯一路径
-
-    const up = await supabase.storage.from('media').upload(path, file, {
-      upsert: true, contentType: file.type || 'application/octet-stream', cacheControl: '3600'
-    })
-    if (up.error) throw up.error
-
-    const type = file.type.startsWith('image/') ? 'image' : 'video'
-    const ins = await supabase.from('media_assets').insert({
-      owner_id: user.id, type, file_path: path, title: file.name, status: 'active'
-    })
-    if (ins.error) throw ins.error
-
-    toast('上传成功')
-    if (gallery.style.display !== 'none') await loadGallery()
+    const res = await list()
+    if (!res.items.length) { gallery.innerHTML = '<div class="empty">还没有祝福，做第一个送祝福的人吧</div>'; return }
+    const isAdmin = parseJwt(getToken())?.role === 'admin'
+    for (const it of res.items) {
+      const url = fileUrl(it.key)
+      const card = document.createElement('div'); card.className = 'card'; card.style.position = 'relative'
+      card.innerHTML = it.type === 'image' ? `<img src="${url}" alt="">` : `<video src="${url}" controls playsinline></video>`
+      if (isAdmin) {
+        const del = document.createElement('button'); del.textContent = '删除'
+        del.style.cssText = 'position:absolute;right:10px;top:10px'
+        del.onclick = async () => { if (!confirm('确定删除？')) return; lock(del as any, true, '…'); try { await remove(it.key); card.remove(); toast('已删除') } finally { lock(del as any, false) } }
+        card.appendChild(del)
+      }
+      gallery.appendChild(card)
+    }
   } catch (e: any) {
-    toast('上传失败：' + (e?.message || e))
-    console.error(e)
-  } finally {
-    lock(uploadBtn, false)
-    filePicker.value = ''
+    toast(e?.message || '加载失败')
   }
 }
-
-
-
+function parseJwt(t: string) { try { const [b] = t.split('.'); return JSON.parse(atob(b)) } catch { return null } }
+console.log("API_BASE=", import.meta.env.VITE_API_BASE);

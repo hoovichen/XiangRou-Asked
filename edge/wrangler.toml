@@ -1,0 +1,18 @@
+# wrangler.toml
+name = "xiangrou-api"
+main = "src/index.ts"
+compatibility_date = "2024-08-26"
+
+[[r2_buckets]]
+binding = "R2"            # 代码里用 env.R2
+bucket_name = "blessings" # 你在 R2 建的桶名
+
+[vars]
+# SHA256(明文口令 + 盐) 存在环境变量里。先占位，部署前再 wrangler secret put
+# VIEWER_SHA256 和 ADMIN_SHA256 建议用 openssl/网站工具算好再填
+TOKEN_TTL = "3600"        # token 有效期：秒
+CORS_ORIGIN = "*"         # 也可写你的页面域名
+VIEWER_SHA256 = "36b66835ec3dc1d49a106e6fc08baca42fb052c205c231354eb22aa4a1abadf3"
+ADMIN_SHA256  = "0e0027b524717221a84903b1db0351dfeb0230662bb61ce9188b2fe935e878fc"
+# 机密：部署时以 secret 注入
+# SIGNING_SECRET = "dev-any-random-string-32-bytes"

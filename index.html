@@ -35,55 +35,60 @@
         <section class="controls" id="controls">
           <div class="toolbar">
             <button id="viewBtn" class="primary">查看大家的祝福</button>
-            <button id="uploadBtn">我来上传</button>
             <span style="flex:1"></span>
-            <button id="login">登录/注册</button>
+            <button id="adminBtn">登录</button>
             <button id="logout" style="display:none">退出</button>
+            <!-- 管理员专用操作区 -->
+            <!-- 管理员专用 -->
+            <div id="admin-panel" style="display:none;">
+              <button id="uploadBtn">上传视频</button>
+              <button id="editMsgBtn">编辑祝福</button>
+            </div>
           </div>
           <!-- 隐藏的 input，支持安卓/iOS 相册 -->
           <input id="filePicker" type="file" accept="video/*,image/*" style="display:none" />
         </section>
+
       </div>
+      <!-- 口令弹窗 -->
+      <div class="modal" id="codeModal" style="display:none">
+        <div class="dialog">
+          <div class="dialog-hd">
+            <strong id="codeTitle">输入口令</strong>
+            <button id="codeClose" class="icon-btn">✕</button>
+          </div>
+          <div class="dialog-bd">
+            <label>口令</label>
+            <input id="codeInput" placeholder="请输入口令" />
+            <div id="codeErr" style="display:none;color:#ffb3c1;margin-top:6px"></div>
+          </div>
+          <div class="dialog-ft">
+            <button id="codeSubmit" class="primary">确定</button>
+            <button id="codeSwitch" class="ghost">切换为管理员</button>
+          </div>
+        </div>
+      </div>
+
     </section>
     <!-- 画廊：用网格展示图片/视频 -->
-    <section class="gallery" id="gallery" style="display:none"></section>
+    <section class="gallery" id="gallery" style="display:none">
+      <!-- 画廊占位卡（加载/空状态时用，JS 会克隆） -->
+      <template id="card-skeleton">
+        <div class="card">
+          <div class="skeleton media"></div>
+          <div class="skeleton line"></div>
+        </div>
+      </template>
+      <template id="card-empty">
+        <div class="card" >
+          还没有祝福，做第一个送祝福的人吧～
+        </div>
+      </template>
 
+    </section>
   </main>
-  <!-- 登录蒙层（点击“登录/注册”出现） -->
-  <div class="modal" id="authModal" aria-hidden="true">
-    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-      <div class="dialog-hd">
-        <div id="authTitle">登录 / 注册</div>
-        <button id="authClose" class="icon-btn" aria-label="关闭">✕</button>
-      </div>
-      <div class="dialog-bd">
-        <label>邮箱</label>
-        <input id="authEmail" type="email" placeholder="you@example.com" />
-        <label>密码</label>
-        <input id="authPassword" type="password" placeholder="至少 6 位" />
-        <div id="authError" class="err" style="display:none"></div>
-      </div>
-      <div class="dialog-ft">
-        <button id="authSubmit" class="primary">登录</button>
-        <button id="authSwitch" class="ghost">没有账号？点此注册</button>
-        <button id="authMagic" class="ghost">邮件快捷登录</button>
-        <button id="authReset" class="ghost">忘记密码</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- 画廊占位卡（加载/空状态时用，JS 会克隆） -->
-  <template id="card-skeleton">
-    <div class="card">
-      <div class="skeleton media"></div>
-      <div class="skeleton line"></div>
-    </div>
-  </template>
-  <template id="card-empty">
-    <div class="card" style="display:flex;align-items:center;justify-content:center;min-height:140px;opacity:.8">
-      还没有祝福，做第一个送祝福的人吧～
-    </div>
-  </template>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 
