@@ -105,7 +105,8 @@ filePicker.onchange = async () => {
   try {
     lock(uploadBtn!, true, '上传中...')
     // TODO: 调你的上传 API（R2/Supabase）
-    await upload(file)
+    void file
+    // await upload(file)
     toast('上传成功')
     await showGallery()
   } catch (e: any) {
@@ -236,7 +237,10 @@ async function showGallery() {
     const isAdmin = parseJwt(getToken())?.role === 'admin'
     for (const it of res.items) {
       const url = fileUrl(it.key)
-      const card = document.createElement('div'); card.className = 'card'; card.style.position = 'relative'; card.style.setProperty('--delay', `${i * 60}ms`);
+      const card = document.createElement('div')
+      card.className = 'card'
+      card.style.position = 'relative'
+      card.style.setProperty('--delay', `${i * 60}ms`)
       card.innerHTML = it.type === 'image' ? `<img src="${url}" alt="">` : `<video src="${url}" controls playsinline></video>`
       if (isAdmin) {
         const del = document.createElement('button'); del.textContent = '删除'
