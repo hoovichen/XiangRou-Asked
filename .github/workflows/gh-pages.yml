@@ -29,9 +29,8 @@ jobs:
       #   - Secrets  : VITE_SUPABASE_ANON_KEY
       - name: Create env file
         run: |
-          cat > .env.production <<EOF
-          VITE_SUPABASE_URL=${{ vars.* }}
-          VITE_SUPABASE_ANON_KEY=${{ secrets.* }}
+          cat > .env.production <<'EOF'
+          VITE_API_BASE=${{ vars.VITE_API_BASE }}
           EOF
       - run: npm ci
       - run: npm run build
