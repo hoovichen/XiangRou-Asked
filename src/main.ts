@@ -235,21 +235,25 @@ async function showGallery() {
       return 
     }
     const isAdmin = parseJwt(getToken())?.role === 'admin'
-    for (const it of res.items) {
+    res.items.forEach((it, i) => {
       const url = fileUrl(it.key)
       const card = document.createElement('div')
       card.className = 'card'
       card.style.position = 'relative'
-      card.style.setProperty('--delay', `${i * 60}ms`)
-      card.innerHTML = it.type === 'image' ? `<img src="${url}" alt="">` : `<video src="${url}" controls playsinline></video>`
+      card.style.setProperty('--delay', `${i * 60}ms`) // 卡片错峰入场
+      card.innerHTML = it.type === 'image'
+        ? `<img src="${url}" alt="">`
+        : `<video src="${url}" controls playsinline></video>`
       if (isAdmin) {
-        const del = document.createElement('button'); del.textContent = '删除'
+        const del = document.createElement('button')
+        del.textContent = '删除'
         del.style.cssText = 'position:absolute;right:10px;top:10px'
-        del.onclick = async () => { if (!confirm('确定删除？')) return; lock(del as any, true, '…'); try { await remove(it.key); card.remove(); toast('已删除') } finally { lock(del as any, false) } }
-        card.appendChild(del)
-      }
-      gallery.appendChild(card)
-    }
+        del.onclick = async () => {
+          if (!confirm('确定删除？')) return
+          lock(del as any, true, '…')
+          try { await remove(it.key); card.remove(); toast('已删除') }
+          finally { lock(del as any, false) }
+        }
   } catch (e: any) {
     toast(e?.message || '加载失败')
   }
