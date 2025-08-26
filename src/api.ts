@@ -25,20 +25,22 @@ export async function login(role: 'viewer' | 'admin', code: string) {
 }
 
 export async function list() {
-  const r = await fetch(API + '/list', { headers: authHeaders() })  // ✅ 这里的 headers 是 HeadersInit
+  const r = await fetch(API + '/list', { headers: authHeaders() })  // 这里的 headers 是 HeadersInit
   const j = await r.json()
   if (!r.ok) throw new Error(j.error || r.statusText)
   return j as { items: { key: string; type: 'image' | 'video'; size: number; uploaded: string | null }[]; truncated: boolean }
 }
 
 export function fileUrl(key: string) {
-  return API + '/file/' + encodeURIComponent(key)
+  const base = import.meta.env.VITE_API_BASE
+  const t = encodeURIComponent(getToken() || '')
+  return `${base}/file/${encodeURIComponent(key)}?t=${t}`
 }
 
 export async function remove(key: string) {
   const r = await fetch(API + '/file/' + encodeURIComponent(key), {
     method: 'DELETE',
-    headers: authHeaders(),                 // ✅ 同理
+    headers: authHeaders(),                 // 同理
   })
   if (!r.ok) throw new Error('删除失败')
   return true

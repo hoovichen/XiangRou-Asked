@@ -7,11 +7,26 @@ export interface Env {
 	CORS_ORIGIN?: string
 }
 
-const CORS = (env: Env) => ({
-	'access-control-allow-origin': env.CORS_ORIGIN || '*',
-	'access-control-allow-headers': 'content-type,authorization',
-	'access-control-allow-methods': 'GET,POST,OPTIONS,DELETE',
-})
+const CORS = (env: Env, req?: Request) => {
+	// 支持多域白名单
+	const list = (env.CORS_ORIGIN || '*').split(',').map(s => s.trim()).filter(Boolean)
+	const origin = req?.headers.get('Origin') || ''
+	const allow =
+		list.includes('*') ? '*' :
+			list.includes(origin) ? origin : ''
+
+	const h: Record<string, string> = {
+		'access-control-expose-headers': 'content-type,content-range,accept-ranges',
+		'access-control-allow-headers': 'content-type,authorization',
+		'access-control-allow-methods': 'GET,POST,OPTIONS,DELETE',
+		'access-control-max-age': '86400',
+	}
+	if (allow) {
+		h['access-control-allow-origin'] = allow
+		if (allow !== '*') h['vary'] = 'Origin'
+	}
+	return h
+}
 const json = (d: unknown, s = 200, h: Record<string, string> = {}) =>
 	new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json', ...h } })
 
@@ -48,61 +63,118 @@ function mime(key: string) {
 	if (['mp4', 'webm', 'm4v', 'mov', 'ogv', 'ogg'].includes(ext)) return ext === 'ogv' ? 'video/ogg' : `video/${ext}`
 	return 'application/octet-stream'
 }
+function pickToken(req: Request, url: URL) {
+	const h = req.headers.get('authorization') || '';
+	if (h.startsWith('Bearer ')) return h.slice(7);
+	return url.searchParams.get('token') || '';
+}
 
 export default {
 	async fetch(req: Request, env: Env) {
 		const url = new URL(req.url)
-		if (req.method === 'OPTIONS') return new Response('', { headers: CORS(env) })
+		if (req.method === 'OPTIONS') return new Response('', { headers: CORS(env, req) })
 
 		// ---- 登录：POST /login { role, code } ----
 		if (url.pathname === '/login' && req.method === 'POST') {
 			const { role, code } = await req.json() as { role: 'viewer' | 'admin', code: string }
-			if (!role || !code) return json({ error: 'bad request' }, 400, CORS(env))
+			if (!role || !code) return json({ error: 'bad request' }, 400, CORS(env, req))
 			const hash = await sha256(code)
 			console.log('[login]', { role, code, hash })     // ← 临时日志，dev 终端能看到
 			const target = role === 'admin' ? env.ADMIN_SHA256 : env.VIEWER_SHA256
-			if (hash !== target) return json({ error: 'invalid code' }, 401, CORS(env))
+			if (hash !== target) return json({ error: 'invalid code' }, 401, CORS(env, req))
 			const ttl = Number(env.TOKEN_TTL || '3600') * 1000
 			const token = await sign(env, { role, exp: Date.now() + ttl })
 
-			  
-			return json({ token, role, ttl }, 200, CORS(env))
+
+			return json({ token, role, ttl }, 200, CORS(env, req))
 		}
-		  
+
 
 		// ---- 需要鉴权的接口 ----
 		const auth = req.headers.get('authorization') || ''
 		const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
 		const sess = await verify(env, token)
-		if (!sess) return json({ error: 'unauthorized' }, 401, CORS(env))
+		if (!sess) return json({ error: 'unauthorized' }, 401, CORS(env, req))
 
 		// ---- 列表：GET /list ----
 		if (url.pathname === '/list' && req.method === 'GET') {
 			// 没接 R2 时返回空列表，接了 R2 再打开：
-			if (!env.R2) return json({ items: [], truncated: false }, 200, CORS(env))
+			// console.log('hasR2 =', !!env.R2)
+			if (!env.R2) return json({ items: [], truncated: false }, 200, CORS(env, req))
 			const listed = await env.R2.list({ limit: 1000 })
 			const items = listed.objects.map(o => ({ key: o.key, size: o.size, uploaded: o.uploaded?.toISOString() || null, type: mime(o.key) }))
-			return json({ items, truncated: listed.truncated}, 200, CORS(env))
+			return json({ items, truncated: listed.truncated }, 200, CORS(env, req))
 		}
 
 		// ---- 读文件：GET /file/<key> ----
 		if (url.pathname.startsWith('/file/') && req.method === 'GET') {
-			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env))
+			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env, req))
+
+			const tok = pickToken(req, url)
+			const sess = await verify(env, tok)
+			if (!sess) return new Response('Unauthorized', { status: 401, headers: CORS(env, req) })
+
 			const key = decodeURIComponent(url.pathname.replace('/file/', ''))
+			const range = req.headers.get('range') // 例如：bytes=12345-
+			if (range) {
+				const m = /bytes=(\d+)-(\d+)?/i.exec(range)
+				const start = m ? Number(m[1]) : 0
+				const end = m && m[2] ? Number(m[2]) : undefined
+
+				const obj = await env.R2.get(key, {
+					range: end !== undefined
+						? { offset: start, length: end - start + 1 }
+						: { offset: start }
+				})
+				if (!obj) return new Response('Not found', { status: 404, headers: CORS(env, req) })
+
+				const size = obj.size ?? 0
+				const last = end !== undefined ? end : (size ? size - 1 : start)
+				const headers = {
+					...CORS(env, req),
+					'content-type': mime(key),
+					'accept-ranges': 'bytes',
+					'content-range': `bytes ${start}-${last}/${size}`,
+				}
+				return new Response(obj.body, { status: 206, headers })
+			}
+
+			// 无 Range：整文件
 			const obj = await env.R2.get(key)
-			if (!obj) return new Response('Not found', { status: 404, headers: CORS(env) })
-			return new Response(obj.body, { status: 200, headers: { ...CORS(env), 'content-type': mime(key) } })
+			if (!obj) return new Response('Not found', { status: 404, headers: CORS(env, req) })
+			return new Response(obj.body, {
+				status: 200,
+				headers: { ...CORS(env, req), 'content-type': mime(key) }
+			})
 		}
+
 
 		// ---- 删除：DELETE /file/<key> (admin only) ----
 		if (url.pathname.startsWith('/file/') && req.method === 'DELETE') {
-			if (sess.role !== 'admin') return json({ error: 'forbidden' }, 403, CORS(env))
+			if (sess.role !== 'admin') return json({ error: 'forbidden' }, 403, CORS(env, req))
 			const key = decodeURIComponent(url.pathname.replace('/file/', ''))
 			await env.R2.delete(key)
-			return json({ ok: true }, 200, CORS(env))
+			return json({ ok: true }, 200, CORS(env, req))
+		}
+		// POST /upload  (需要携带 Authorization: Bearer <token>)
+		if (url.pathname === '/upload' && req.method === 'POST') {
+			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env, req))
+			const sess = await verify(env, (req.headers.get('authorization') || '').replace(/^Bearer /, ''))
+			if (!sess) return json({ error: 'unauthorized' }, 401, CORS(env, req))
+
+			const form = await req.formData()
+			const file = form.get('file') as File | null
+			if (!file) return json({ error: 'no file' }, 400, CORS(env, req))
+
+			const key = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}-${file.name}`
+			await env.R2.put(key, await file.arrayBuffer(), {
+				httpMetadata: { contentType: file.type }
+			})
+			return json({ key }, 200, CORS(env, req))
 		}
 
+
 		// 健康检查
-		return json({ ok: true, service: 'worker' }, 200, CORS(env))
+		return json({ ok: true, service: 'worker' }, 200, CORS(env, req))
 	}
 }

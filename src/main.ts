@@ -95,7 +95,17 @@ viewBtn.onclick = async () => {
 
 // —— 打开登录弹窗（默认访客，弹窗里可切换管理员）——
 adminBtn.onclick = () => openCode('viewer')
-
+async function uploadToR2(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${import.meta.env.VITE_API_BASE}/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: fd
+  })
+  if (!res.ok) throw new Error('上传失败')
+  return res.json()
+}
 // —— 上传：管理员可见 ——
 // 用隐藏的 input，避免重复创建 input
 uploadBtn?.addEventListener('click', () => filePicker.click())
@@ -105,8 +115,8 @@ filePicker.onchange = async () => {
   try {
     lock(uploadBtn!, true, '上传中...')
     // TODO: 调你的上传 API（R2/Supabase）
-    void file
-    // await upload(file)
+    // void file
+    await uploadToR2(file)
     toast('上传成功')
     await showGallery()
   } catch (e: any) {
@@ -164,7 +174,7 @@ codeSubmit.onclick = async () => {
     await login(codeRole, v)           // 成功会保存 token
     closeCode()
     toast(codeRole === 'admin' ? '欢迎管理员' : '验证成功')
-    applyUI()                          // ✅ 切换 UI
+    applyUI()                          // 切换 UI
     await showGallery()                // 两种角色都给看；如果只想 viewer 看，这里改条件
   } catch (e: any) {
     codeErr.textContent = '口令不正确'
@@ -193,54 +203,92 @@ document.getElementById('logout')!.addEventListener('click', () => {
 // ====== 画廊渲染（含骨架占位） ======
 // 骨架占位
 function renderSkeleton(n = 8) {
-  const tpl = (document.getElementById('card-skeleton') as HTMLTemplateElement).content
+  const tpl = document.getElementById('card-skeleton') as HTMLTemplateElement | null
+  if (!tpl || !tpl.content) {
+    // 兜底：没有模板，直接清空或用最简单的占位
+    gallery.innerHTML = ''
+    // for (let i = 0; i < n; i++) {
+    //   const div = document.createElement('div')
+    //   div.className = 'card'
+    //   div.style.height = '180px'
+    //   div.style.opacity = '0.3'
+    //   gallery.appendChild(div)
+    // }
+    return
+  }
   gallery.innerHTML = ''
-  for (let i = 0; i < n; i++) gallery.appendChild(tpl.cloneNode(true))
+  for (let i = 0; i < n; i++) gallery.appendChild(tpl.content.cloneNode(true))
 }
+
 
 
 async function showGallery() {
   const stage = document.querySelector('main.stage') as HTMLElement
   if (stage && !stage.classList.contains('compact')) stage.classList.add('compact')
+
   gallery.style.display = 'grid'
-  gallery.innerHTML = '' // 可先放骨架
-  renderSkeleton(8)
+  renderSkeleton(8)   // 先放骨架
+
   try {
     const res = await list()
-    gallery.innerHTML = ''  // 拿到数据后把骨架清掉
-    if (!res.items.length) { 
-      // gallery.innerHTML = '<div class="empty">还没有祝福，做第一个送祝福的人吧</div>'; 
-      const tpl = (document.getElementById('card-empty') as HTMLTemplateElement).content.cloneNode(true)
-      gallery.appendChild(tpl)
-      return 
+    gallery.innerHTML = ''   // 有结果后清骨架
+
+    if (!res.items.length) {
+      // 只插入模板，不要先 innerHTML 再 append，避免重复
+      const emptyTpl = document.getElementById('card-empty') as HTMLTemplateElement | null
+      if (emptyTpl) gallery.appendChild(emptyTpl.content.cloneNode(true))
+      return
     }
+
     const isAdmin = parseJwt(getToken())?.role === 'admin'
+
     res.items.forEach((it, i) => {
       const url = fileUrl(it.key)
       const card = document.createElement('div')
       card.className = 'card'
       card.style.position = 'relative'
-      card.style.setProperty('--delay', `${i * 60}ms`) // 卡片错峰入场
-      card.innerHTML = it.type === 'image'
+      card.style.setProperty('--delay', `${i * 60}ms`) // 卡片错峰入场（如果你动画用到）
+
+      // 媒体内容
+      card.innerHTML = (it.type === 'image')
         ? `<img src="${url}" alt="">`
         : `<video src="${url}" controls playsinline></video>`
+
+      // 管理员的卡片操作
       if (isAdmin) {
+        const actions = document.createElement('div')
+        actions.className = 'card-actions'
+
+        // 删除按钮（统一样式）
         const del = document.createElement('button')
-        del.textContent = '删除'
-        del.style.cssText = 'position:absolute;right:10px;top:10px'
+        del.className = 'btn btn-mini btn-danger'
+        del.innerHTML = `删除`  // 或用图标：`<span class="icon">🗑</span>`
         del.onclick = async () => {
-          if (!confirm('确定删除？')) return
-          lock(del as any, true, '…')
-          try { await remove(it.key); card.remove(); toast('已删除') }
-          finally { lock(del as any, false) }
+          if (!confirm('确定删除这条祝福吗？')) return
+          try {
+            lock(del as any, true, '…')
+            await remove(it.key)
+            card.remove()
+            toast('已删除')
+          } finally {
+            lock(del as any, false)
+          }
         }
-        card.appendChild(del)
+
+        actions.appendChild(del)
+        card.appendChild(actions)
       }
+
       gallery.appendChild(card)
     })
+
   } catch (e: any) {
+    gallery.innerHTML = ''
     toast(e?.message || '加载失败')
   }
 }
+
 function parseJwt(t: string) { try { const [b] = t.split('.'); return JSON.parse(atob(b)) } catch { return null } }
+
+
 console.log("API_BASE=", import.meta.env.VITE_API_BASE);
