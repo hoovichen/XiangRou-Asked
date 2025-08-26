@@ -235,6 +235,5 @@ npx wrangler deploy
 
 ---
 
-## 10) License
 
-MIT (or your preferred)
+
