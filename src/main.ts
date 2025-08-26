@@ -103,15 +103,15 @@ filePicker.onchange = async () => {
   if (!filePicker.files?.length) return
   const file = filePicker.files[0]
   try {
-    lock(uploadBtn, true, '上传中...')
+    lock(uploadBtn!, true, '上传中...')
     // TODO: 调你的上传 API（R2/Supabase）
-    // await upload(file)
+    await upload(file)
     toast('上传成功')
     await showGallery()
   } catch (e: any) {
     toast(e?.message || '上传失败')
   } finally {
-    lock(uploadBtn, false)
+    lock(uploadBtn!, false)
     filePicker.value = ''
   }
 }
@@ -195,28 +195,27 @@ function renderSkeleton(n = 8) {
   gallery.innerHTML = ''
   for (let i = 0; i < n; i++) gallery.appendChild(tpl.cloneNode(true))
 }
-
-document.getElementById('uploadBtn')?.addEventListener('click', () => {
-  const fileInput = document.createElement('input')
-  fileInput.type = 'file'
-  fileInput.accept = 'video/*,image/*'
-  fileInput.onchange = async () => {
-    if (fileInput.files?.length) {
-      const file = fileInput.files[0]
-      try {
-        lock(document.getElementById('uploadBtn') as HTMLButtonElement, true, '上传中...')
-        // TODO: 调用 API 上传到 R2/Supabase
-        toast('上传成功')
-        await showGallery() // 刷新
-      } catch (e: any) {
-        toast(e?.message || '上传失败')
-      } finally {
-        lock(document.getElementById('uploadBtn') as HTMLButtonElement, false)
-      }
-    }
-  }
-  fileInput.click()
-})
+// document.getElementById('uploadBtn')?.addEventListener('click', () => {
+//   const fileInput = document.createElement('input')
+//   fileInput.type = 'file'
+//   fileInput.accept = 'video/*,image/*'
+//   fileInput.onchange = async () => {
+//     if (fileInput.files?.length) {
+//       const file = fileInput.files[0]
+//       try {
+//         lock(document.getElementById('uploadBtn') as HTMLButtonElement, true, '上传中...')
+//         // TODO: 调用 API 上传到 R2/Supabase
+//         toast('上传成功')
+//         await showGallery() // 刷新
+//       } catch (e: any) {
+//         toast(e?.message || '上传失败')
+//       } finally {
+//         lock(document.getElementById('uploadBtn') as HTMLButtonElement, false)
+//       }
+//     }
+//   }
+//   fileInput.click()
+// })
 
 
 async function showGallery() {
@@ -224,13 +223,20 @@ async function showGallery() {
   if (stage && !stage.classList.contains('compact')) stage.classList.add('compact')
   gallery.style.display = 'grid'
   gallery.innerHTML = '' // 可先放骨架
+  renderSkeleton(8)
   try {
     const res = await list()
-    if (!res.items.length) { gallery.innerHTML = '<div class="empty">还没有祝福，做第一个送祝福的人吧</div>'; return }
+    gallery.innerHTML = ''  // 拿到数据后把骨架清掉
+    if (!res.items.length) { 
+      // gallery.innerHTML = '<div class="empty">还没有祝福，做第一个送祝福的人吧</div>'; 
+      const tpl = (document.getElementById('card-empty') as HTMLTemplateElement).content.cloneNode(true)
+      gallery.appendChild(tpl)
+      return 
+    }
     const isAdmin = parseJwt(getToken())?.role === 'admin'
     for (const it of res.items) {
       const url = fileUrl(it.key)
-      const card = document.createElement('div'); card.className = 'card'; card.style.position = 'relative'
+      const card = document.createElement('div'); card.className = 'card'; card.style.position = 'relative'; card.style.setProperty('--delay', `${i * 60}ms`);
       card.innerHTML = it.type === 'image' ? `<img src="${url}" alt="">` : `<video src="${url}" controls playsinline></video>`
       if (isAdmin) {
         const del = document.createElement('button'); del.textContent = '删除'
