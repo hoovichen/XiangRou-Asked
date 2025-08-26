@@ -15,4 +15,4 @@ CORS_ORIGIN = "*"         # 也可写你的页面域名
 VIEWER_SHA256 = "36b66835ec3dc1d49a106e6fc08baca42fb052c205c231354eb22aa4a1abadf3"
 ADMIN_SHA256  = "0e0027b524717221a84903b1db0351dfeb0230662bb61ce9188b2fe935e878fc"
 # 机密：部署时以 secret 注入
-# SIGNING_SECRET = "dev-any-random-string-32-bytes"
+SIGNING_SECRET = "dev-any-random-string-32-bytes"

@@ -167,8 +167,9 @@ codeSubmit.onclick = async () => {
     applyUI()                          // ✅ 切换 UI
     await showGallery()                // 两种角色都给看；如果只想 viewer 看，这里改条件
   } catch (e: any) {
-    codeErr.textContent = e?.message || '口令不正确'
+    codeErr.textContent = '口令不正确'
     codeErr.style.display = 'block'
+    console.log(e?.message)
   } finally {
     lock(codeSubmit, false)
   }
@@ -196,27 +197,6 @@ function renderSkeleton(n = 8) {
   gallery.innerHTML = ''
   for (let i = 0; i < n; i++) gallery.appendChild(tpl.cloneNode(true))
 }
-// document.getElementById('uploadBtn')?.addEventListener('click', () => {
-//   const fileInput = document.createElement('input')
-//   fileInput.type = 'file'
-//   fileInput.accept = 'video/*,image/*'
-//   fileInput.onchange = async () => {
-//     if (fileInput.files?.length) {
-//       const file = fileInput.files[0]
-//       try {
-//         lock(document.getElementById('uploadBtn') as HTMLButtonElement, true, '上传中...')
-//         // TODO: 调用 API 上传到 R2/Supabase
-//         toast('上传成功')
-//         await showGallery() // 刷新
-//       } catch (e: any) {
-//         toast(e?.message || '上传失败')
-//       } finally {
-//         lock(document.getElementById('uploadBtn') as HTMLButtonElement, false)
-//       }
-//     }
-//   }
-//   fileInput.click()
-// })
 
 
 async function showGallery() {
