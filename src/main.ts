@@ -240,7 +240,7 @@ async function showGallery() {
       const card = document.createElement('div')
       card.className = 'card'
       card.style.position = 'relative'
-      card.style.setProperty('--delay', `${i * 60}ms`) // 卡片错峰入场
+      **card.style.setProperty('--delay', `${i * 60}ms`)** // 卡片错峰入场
       card.innerHTML = it.type === 'image'
         ? `<img src="${url}" alt="">`
         : `<video src="${url}" controls playsinline></video>`
@@ -254,6 +254,10 @@ async function showGallery() {
           try { await remove(it.key); card.remove(); toast('已删除') }
           finally { lock(del as any, false) }
         }
+        card.appendChild(del)
+      }
+      gallery.appendChild(card)
+    })
   } catch (e: any) {
     toast(e?.message || '加载失败')
   }
