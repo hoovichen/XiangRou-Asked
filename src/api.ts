@@ -7,7 +7,7 @@ export const setToken = (t: string) => { token = t; localStorage.setItem('wg_tok
 type HDR = HeadersInit
 const jsonHdr: HDR = { 'content-type': 'application/json' }
 
-// ✅ 关键：使用条件展开，避免出现 { authorization: undefined }
+// 关键：使用条件展开，避免出现 { authorization: undefined }
 function authHeaders(): HDR {
   return token ? { authorization: 'Bearer ' + token } : {}
 }
@@ -33,7 +33,8 @@ export async function list() {
 
 export function fileUrl(key: string) {
   const base = import.meta.env.VITE_API_BASE
-  const t = encodeURIComponent(getToken() || '')
+  // const t = encodeURIComponent(getToken() || '')
+  const t = getToken() || ''
   return `${base}/file/${encodeURIComponent(key)}?t=${t}`
 }
 

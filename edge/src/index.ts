@@ -16,8 +16,9 @@ const CORS = (env: Env, req?: Request) => {
 			list.includes(origin) ? origin : ''
 
 	const h: Record<string, string> = {
+		'access-control-allow-origin': env.CORS_ORIGIN || '*',
 		'access-control-expose-headers': 'content-type,content-range,accept-ranges',
-		'access-control-allow-headers': 'content-type,authorization',
+		'access-control-allow-headers': 'content-type,authorization,ranges',
 		'access-control-allow-methods': 'GET,POST,OPTIONS,DELETE',
 		'access-control-max-age': '86400',
 	}
@@ -64,9 +65,11 @@ function mime(key: string) {
 	return 'application/octet-stream'
 }
 function pickToken(req: Request, url: URL) {
-	const h = req.headers.get('authorization') || '';
-	if (h.startsWith('Bearer ')) return h.slice(7);
-	return url.searchParams.get('token') || '';
+	const q = url.searchParams.get('t');
+	// console.log(q);
+	if (q) return q;
+	const a = req.headers.get('authorization') || '';
+	return a.startsWith('Bearer ') ? a.slice(7) : '';
 }
 
 export default {
@@ -79,7 +82,7 @@ export default {
 			const { role, code } = await req.json() as { role: 'viewer' | 'admin', code: string }
 			if (!role || !code) return json({ error: 'bad request' }, 400, CORS(env, req))
 			const hash = await sha256(code)
-			console.log('[login]', { role, code, hash })     // ← 临时日志，dev 终端能看到
+			// console.log('[login]', { role, code, hash })     // ← 临时日志，dev 终端能看到
 			const target = role === 'admin' ? env.ADMIN_SHA256 : env.VIEWER_SHA256
 			if (hash !== target) return json({ error: 'invalid code' }, 401, CORS(env, req))
 			const ttl = Number(env.TOKEN_TTL || '3600') * 1000
@@ -108,45 +111,58 @@ export default {
 
 		// ---- 读文件：GET /file/<key> ----
 		if (url.pathname.startsWith('/file/') && req.method === 'GET') {
-			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env, req))
+			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env, req));
 
-			const tok = pickToken(req, url)
-			const sess = await verify(env, tok)
-			if (!sess) return new Response('Unauthorized', { status: 401, headers: CORS(env, req) })
+			// 既支持 Header Bearer，也支持 URL ?t=
+			const tok = pickToken(req, url);
+			const sess = await verify(env, tok);
+			if (!sess) return new Response('Unauthorized', { status: 401, headers: CORS(env, req) });
 
-			const key = decodeURIComponent(url.pathname.replace('/file/', ''))
-			const range = req.headers.get('range') // 例如：bytes=12345-
+			const key = decodeURIComponent(url.pathname.replace('/file/', ''));
+			const range = req.headers.get('range');            // e.g. "bytes=0-" 或 "bytes=100-199"
+
+			// --- Range: 按片返回，206
 			if (range) {
-				const m = /bytes=(\d+)-(\d+)?/i.exec(range)
-				const start = m ? Number(m[1]) : 0
-				const end = m && m[2] ? Number(m[2]) : undefined
+				const m = /bytes=(\d+)-(\d+)?/i.exec(range);
+				const start = m ? Number(m[1]) : 0;
+				const end = m && m[2] ? Number(m[2]) : undefined;
 
-				const obj = await env.R2.get(key, {
-					range: end !== undefined
-						? { offset: start, length: end - start + 1 }
-						: { offset: start }
-				})
-				if (!obj) return new Response('Not found', { status: 404, headers: CORS(env, req) })
+				const obj = await env.R2.get(key, end !== undefined
+					? { range: { offset: start, length: end - start + 1 } }
+					: { range: { offset: start } }
+				);
+				if (!obj) return new Response('Not found', { status: 404, headers: CORS(env, req) });
 
-				const size = obj.size ?? 0
-				const last = end !== undefined ? end : (size ? size - 1 : start)
-				const headers = {
+				const size = obj.size ?? 0; // 对象总大小
+				// 如果请求里有 end，就用 end-start+1；否则就是 size - start
+				const length = end !== undefined ? end - start + 1 : (size - start);
+				const last   = start + length - 1;
+
+				const headers: Record<string, string> = {
 					...CORS(env, req),
 					'content-type': mime(key),
 					'accept-ranges': 'bytes',
+					'content-length': String(length),
 					'content-range': `bytes ${start}-${last}/${size}`,
-				}
-				return new Response(obj.body, { status: 206, headers })
+				};
+				return new Response(obj.body, { status: 206, headers });
 			}
 
-			// 无 Range：整文件
-			const obj = await env.R2.get(key)
-			if (!obj) return new Response('Not found', { status: 404, headers: CORS(env, req) })
+			// --- 非 Range: 整文件，200
+			const obj = await env.R2.get(key);
+			if (!obj) return new Response('Not found', { status: 404, headers: CORS(env, req) });
+
 			return new Response(obj.body, {
 				status: 200,
-				headers: { ...CORS(env, req), 'content-type': mime(key) }
-			})
+				headers: {
+					...CORS(env, req),
+					'content-type': mime(key),
+					'accept-ranges': 'bytes',
+					'content-length': String(obj.size),
+				}
+			});
 		}
+
 
 
 		// ---- 删除：DELETE /file/<key> (admin only) ----
