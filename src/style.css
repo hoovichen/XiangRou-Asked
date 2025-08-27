@@ -30,56 +30,14 @@ body {
 }
 
 .stage {
-  position: absolute;
+  position: relative;
   inset: 0;
   display: grid;
   grid-template-rows: auto 1fr auto
 }
 
-.orbs {
-  z-index: 0;
-  inset: 0;
-  pointer-events: none;
-  filter: blur(10px) saturate(1.4)
-}
-
-.orb {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, #fff, var(--brand));
-  opacity: .85;
-  --a: 0deg;
-  animation: spin 9s linear infinite
-}
-
-.orb[data-i="1"] {
-  animation-duration: 10s
-}
-
-.orb[data-i="2"] {
-  animation-duration: 11.5s
-}
-
-.orb[data-i="3"] {
-  animation-duration: 13s
-}
-
-.orb[data-i="4"] {
-  animation-duration: 15s
-}
-
-.orb[data-i="5"] {
-  animation-duration: 17s
-}
-
-.orb {
-  left: calc(50% + sin(var(--a))*40vw);
-  top: calc(45% + cos(calc(var(--a)*2))*18vh)
-}
-
 .panel {
+  margin-top: 20%;
   place-self: center;
   text-align: center;
   padding: 24px;
@@ -152,7 +110,25 @@ body {
 .heart::after {
   top: -50%
 }
+/* 玫瑰光线容器：全屏铺满、不可点、置底 */
+.orbs {
+  position: absolute;   /* ← 必须有 */
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(1px) saturate(1.4);
+}
 
+/* 光点本体：小圆、发光、默认透明度 */
+.orb {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #fff, var(--brand));
+  opacity: .85;
+  will-change: transform;
+}
 .toolbar {
   display: flex;
   gap: 8px;
@@ -390,7 +366,7 @@ video {
 
 .skeleton::after {
   content: "";
-  position: absolute;
+  /* position: absolute; */
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .25), transparent);
   transform: translateX(-100%);

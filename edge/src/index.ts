@@ -105,6 +105,7 @@ export default {
 			// console.log('hasR2 =', !!env.R2)
 			if (!env.R2) return json({ items: [], truncated: false }, 200, CORS(env, req))
 			const listed = await env.R2.list({ limit: 1000 })
+			// console.log(listed.objects.map(o => o.key))
 			const items = listed.objects.map(o => ({ key: o.key, size: o.size, uploaded: o.uploaded?.toISOString() || null, type: mime(o.key) }))
 			return json({ items, truncated: listed.truncated }, 200, CORS(env, req))
 		}
@@ -114,8 +115,7 @@ export default {
 			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env, req));
 
 			// 既支持 Header Bearer，也支持 URL ?t=
-			const tok = pickToken(req, url);
-			const sess = await verify(env, tok);
+			console.log(token)
 			if (!sess) return new Response('Unauthorized', { status: 401, headers: CORS(env, req) });
 
 			const key = decodeURIComponent(url.pathname.replace('/file/', ''));

@@ -33,9 +33,9 @@ export async function list() {
 
 export function fileUrl(key: string) {
   const base = import.meta.env.VITE_API_BASE
-  // const t = encodeURIComponent(getToken() || '')
-  const t = getToken() || ''
-  return `${base}/file/${encodeURIComponent(key)}?t=${t}`
+  const t = encodeURIComponent(getToken() || '')
+  // const t = getToken() || ''
+  return `${base}/file/${encodeURIComponent(key)}?t=${t}` 
 }
 
 export async function remove(key: string) {
@@ -46,3 +46,43 @@ export async function remove(key: string) {
   if (!r.ok) throw new Error('删除失败')
   return true
 }
+// 普通上传
+export async function uploadToR2(file: File) {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${import.meta.env.VITE_API_BASE}/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: fd
+  })
+  if (!res.ok) throw new Error('上传失败')
+  return res.json()
+}
+
+// 包含进度条的上传
+export async function uploadWithProgress(file: File, onProgress: (pct: number, done?: boolean) => void) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open("POST", API + "/upload")
+    xhr.setRequestHeader("Authorization", "Bearer " + getToken())
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100)
+        onProgress(pct)
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        onProgress(100, true)   // ← 完成时多传一个 done
+        resolve(JSON.parse(xhr.responseText))
+      } else {
+        reject("上传失败")
+      }
+    }
+    xhr.onerror = () => reject("上传错误")
+    const fd = new FormData()
+    fd.append("file", file)
+    xhr.send(fd)
+  })
+}
+

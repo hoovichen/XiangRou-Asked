@@ -1,36 +1,31 @@
 import './style.css'
-import { login, list, fileUrl, remove, getToken } from './api'
-
-
+import { login, list, fileUrl, remove, getToken, uploadWithProgress } from './api'
+import { makeHearts } from './ui'
+// import { uploadToR2 } from './api'
+// import {  makeOrbs, animateOrbs } from './ui'
 // ====== 小工具 ======
 const $ = (sel: string) => document.querySelector(sel) as HTMLElement
-function makeHearts(count = 140) {
-  const wrap = $('#hearts')
-  const rand = (a: number, b: number) => a + Math.random() * (b - a)
-  wrap.innerHTML = ''
-  for (let i = 0; i < count; i++) {
-    const h = document.createElement('div'); h.className = 'heart'
-    h.style.left = rand(10, 90) + '2vw'                 // 让心心更居中一些
-    h.style.animationDelay = rand(-6, 0) + 's'
-    h.style.animationDuration = rand(6, 12) + 's'
-    h.style.transform = `translateY(${rand(10, 80)}vh) rotate(45deg)`
-    h.style.opacity = String(rand(.4, .95))
-    h.style.width = rand(10, 22) + 'px'
-    wrap.appendChild(h)
-  }
-}
+
+
 // —— 按钮上锁（防重复点击）与 toast —— //
 function lock(btn: HTMLButtonElement, on = true, loadingText?: string) {
-  if (!btn) return
+  if (!btn) return;
   if (on) {
-    btn.setAttribute('disabled', 'true')
-    btn.dataset._text = btn.textContent || ''
-    if (loadingText) btn.textContent = loadingText
-    btn.classList.add('btnloading')
+    // 只在第一次上锁时保存原始文案
+    if (!btn.dataset.orig_text) {
+      btn.dataset.orig_text = btn.textContent || '';
+    }
+    btn.disabled = true;
+    if (loadingText !== undefined) btn.textContent = loadingText;
+    btn.classList.add('btnloading');
   } else {
-    btn.removeAttribute('disabled')
-    if (btn.dataset._text) btn.textContent = btn.dataset._text
-    btn.classList.remove('btnloading')
+    btn.disabled = false;
+    // 恢复并清理
+    if (btn.dataset.orig_text !== undefined) {
+      btn.textContent = btn.dataset.orig_text;
+      delete btn.dataset.orig_text;
+    }
+    btn.classList.remove('btnloading');
   }
 }
 function toast(msg: string, ms = 1800) {
@@ -47,6 +42,8 @@ const raw = getComputedStyle(document.documentElement).getPropertyValue('--msg')
 const from = params.get('from')
 if (from) ($('#sign') as HTMLElement).textContent = `— ${from}`
 makeHearts(140)
+// makeOrbs(5)
+// animateOrbs()
 
 // ====== 绑定元素（命名与 index.html 一致） ======
 // === DOM 引用（和 index.html 中的 id 一一对应） ===
@@ -95,37 +92,37 @@ viewBtn.onclick = async () => {
 
 // —— 打开登录弹窗（默认访客，弹窗里可切换管理员）——
 adminBtn.onclick = () => openCode('viewer')
-async function uploadToR2(file: File) {
-  const fd = new FormData()
-  fd.append('file', file)
-  const res = await fetch(`${import.meta.env.VITE_API_BASE}/upload`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-    body: fd
-  })
-  if (!res.ok) throw new Error('上传失败')
-  return res.json()
-}
+
 // —— 上传：管理员可见 ——
-// 用隐藏的 input，避免重复创建 input
+// 小工具：把按钮文字改成“上传中 XX%”
+function setBtnProgress(pct: number, done?: boolean) {
+  if (done) {
+    lock(uploadBtn!, false); // 恢复按钮
+  } else {
+    uploadBtn!.textContent = `上传中 ${pct}%`;  // 仅更新显示
+  }
+}
 uploadBtn?.addEventListener('click', () => filePicker.click())
 filePicker.onchange = async () => {
   if (!filePicker.files?.length) return
   const file = filePicker.files[0]
   try {
-    lock(uploadBtn!, true, '上传中...')
-    // TODO: 调你的上传 API（R2/Supabase）
+    lock(uploadBtn!, true, '读取中...')
+    // 调的上传 API（R2)
     // void file
-    await uploadToR2(file)
-    toast('上传成功')
-    await showGallery()
+    // await uploadToR2(file)
+    await uploadWithProgress(file, setBtnProgress); 
+    toast('上传成功');
+    (document.getElementById('uploadBtn') as HTMLElement).textContent = "上传视频";
+    await showGallery();
   } catch (e: any) {
     toast(e?.message || '上传失败')
   } finally {
-    lock(uploadBtn!, false)
+    // 若上传失败或异常，确保解锁并恢复原文案
+    if (uploadBtn?.dataset.orig_text) lock(uploadBtn!, false);
     filePicker.value = ''
   }
-}
+} 
 
 // —— 编辑祝福：管理员可见 ——（示例：弹输入框）
 editMsgBtn?.addEventListener('click', async () => {
@@ -207,20 +204,11 @@ function renderSkeleton(n = 8) {
   if (!tpl || !tpl.content) {
     // 兜底：没有模板，直接清空或用最简单的占位
     gallery.innerHTML = ''
-    // for (let i = 0; i < n; i++) {
-    //   const div = document.createElement('div')
-    //   div.className = 'card'
-    //   div.style.height = '180px'
-    //   div.style.opacity = '0.3'
-    //   gallery.appendChild(div)
-    // }
     return
   }
   gallery.innerHTML = ''
   for (let i = 0; i < n; i++) gallery.appendChild(tpl.content.cloneNode(true))
 }
-
-
 
 async function showGallery() {
   const stage = document.querySelector('main.stage') as HTMLElement
@@ -289,6 +277,5 @@ async function showGallery() {
 }
 
 function parseJwt(t: string) { try { const [b] = t.split('.'); return JSON.parse(atob(b)) } catch { return null } }
-
 
 console.log("API_BASE=", import.meta.env.VITE_API_BASE);
