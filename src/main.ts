@@ -6,6 +6,24 @@ import { makeHearts } from './ui'
 // ====== 小工具 ======
 const $ = (sel: string) => document.querySelector(sel) as HTMLElement
 
+// bgm
+const bgm = document.getElementById('bgm') as HTMLAudioElement;
+
+// bgm
+const bgmToggle = document.getElementById('bgmToggle') as HTMLButtonElement;
+if (bgmToggle) {
+  bgmToggle.onclick = () => {
+    if (bgm.paused) {
+      bgm.play().catch(e => console.error('BGM play failed:', e));
+      bgmToggle.textContent = 'Pause BGM';
+    } else {
+      bgm.pause();
+      bgmToggle.textContent = 'Play BGM';
+    }
+  };
+}
+
+
 
 // —— 按钮上锁（防重复点击）与 toast —— //
 function lock(btn: HTMLButtonElement, on = true, loadingText?: string) {
@@ -269,6 +287,10 @@ async function showGallery() {
 
       gallery.appendChild(card)
     })
+    if (bgm) {
+      bgm.volume = 0.2; // Set initial volume (0.0 to 1.0)
+      bgm.play().catch(e => console.error('BGM play failed:', e)); // Handle auto-play restrictions
+    }
 
   } catch (e: any) {
     gallery.innerHTML = ''
