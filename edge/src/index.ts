@@ -67,7 +67,7 @@ function mime(key: string) {
 function pickToken(req: Request, url: URL) {
 	const q = url.searchParams.get('t');
 	// console.log(q);
-	if (q) return q;
+	if (q) return decodeURIComponent(q);
 	const a = req.headers.get('authorization') || '';
 	return a.startsWith('Bearer ') ? a.slice(7) : '';
 }
@@ -91,11 +91,9 @@ export default {
 
 			return json({ token, role, ttl }, 200, CORS(env, req))
 		}
-
-
 		// ---- 需要鉴权的接口 ----
-		const auth = req.headers.get('authorization') || ''
-		const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+		// 既支持 Header Bearer，也支持 URL ?t=
+		const token = pickToken(req, url);
 		const sess = await verify(env, token)
 		if (!sess) return json({ error: 'unauthorized' }, 401, CORS(env, req))
 
@@ -103,6 +101,7 @@ export default {
 		if (url.pathname === '/list' && req.method === 'GET') {
 			// 没接 R2 时返回空列表，接了 R2 再打开：
 			// console.log('hasR2 =', !!env.R2)
+			console.log('list get file  '+ token);
 			if (!env.R2) return json({ items: [], truncated: false }, 200, CORS(env, req))
 			const listed = await env.R2.list({ limit: 1000 })
 			// console.log(listed.objects.map(o => o.key))
@@ -113,11 +112,6 @@ export default {
 		// ---- 读文件：GET /file/<key> ----
 		if (url.pathname.startsWith('/file/') && req.method === 'GET') {
 			if (!env.R2) return json({ error: 'R2 not bound' }, 500, CORS(env, req));
-
-			// 既支持 Header Bearer，也支持 URL ?t=
-			console.log(token)
-			if (!sess) return new Response('Unauthorized', { status: 401, headers: CORS(env, req) });
-
 			const key = decodeURIComponent(url.pathname.replace('/file/', ''));
 			const range = req.headers.get('range');            // e.g. "bytes=0-" 或 "bytes=100-199"
 
@@ -163,10 +157,9 @@ export default {
 			});
 		}
 
-
-
 		// ---- 删除：DELETE /file/<key> (admin only) ----
 		if (url.pathname.startsWith('/file/') && req.method === 'DELETE') {
+			console.log('delete   ' + token);
 			if (sess.role !== 'admin') return json({ error: 'forbidden' }, 403, CORS(env, req))
 			const key = decodeURIComponent(url.pathname.replace('/file/', ''))
 			await env.R2.delete(key)
