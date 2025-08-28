@@ -10,7 +10,7 @@
 
 html,
 body {
-  height: 100%
+  height: 100%;
 }
 
 body {
@@ -18,7 +18,7 @@ body {
   color: #fff;
   background: radial-gradient(1200px 800px at 10% 10%, #201a2b 0%, #0b0b10 55%);
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  overflow: hidden
+  overflow-y: scroll;
 }
 
 .badge {
@@ -270,8 +270,9 @@ video {
 }
 
 .card:hover {
-  transform: translateY(4px);
+  transform: scale(1.05) !important;
 }
+
 
 /* 统一媒体比例，避免高度忽高忽低 */
 .card video,
