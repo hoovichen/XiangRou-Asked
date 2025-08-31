@@ -7,6 +7,7 @@ import { defineConfig } from 'vite'
 //   base: '/'
 
 // wedding-greet/vite.config.ts
-export default defineConfig({
-  base: '/XiangRou-Asked/',   // 项目页一定是 '/<仓库名>/'
-})
+
+export default defineConfig(({ mode }) => ({
+  base: mode === 'netlify' ? '/' : '/XiangRou-Asked/',  // 默认是 GitHub Pages
+}))
