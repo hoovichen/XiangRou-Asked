@@ -300,4 +300,4 @@ async function showGallery() {
 
 function parseJwt(t: string) { try { const [b] = t.split('.'); return JSON.parse(atob(b)) } catch { return null } }
 
-console.log("API_BASE=", import.meta.env.VITE_API_BASE);
+// console.log("API_BASE=", import.meta.env.VITE_API_BASE);
